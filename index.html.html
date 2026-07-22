@@ -14,7 +14,7 @@
     --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;overflow-x:hidden;width:100%;}
   body{font-family:var(--sans);color:var(--ink);
     background:
       radial-gradient(90% 55% at 50% 0%, rgba(58,33,86,.55) 0%, rgba(58,33,86,0) 60%),
@@ -32,6 +32,7 @@
     background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.7;}
 
   .layout{display:grid;grid-template-columns:1fr;gap:22px;align-items:start;}
+  .col-left,.col-right{min-width:0;}
   @media (min-width:900px){
     .layout{grid-template-columns:5fr 6fr;gap:30px;}
     .col-right{position:sticky;top:32px;}
@@ -99,19 +100,37 @@
   .confirm-btn:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}
   .confirm-btn:disabled{opacity:.5;cursor:default;}
 
-  /* 手機：橫向 scroll-snap 牌列 */
-  @media (max-width:640px){
+  /* 手機／平板（未達雙欄）：中央即選定的橫向轉盤 */
+  @media (max-width:899px){
     .grid{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
-      justify-content:flex-start;gap:12px;padding:6px 2px 12px;
-      -ms-overflow-style:none;scrollbar-width:none;}
+      justify-content:flex-start;gap:0;
+      /* 左右各留半個視窗寬的內距，讓第一張與最後一張也能滑到正中央 */
+      padding:14px calc(50% - 46px);
+      -ms-overflow-style:none;scrollbar-width:none;
+      scroll-behavior:smooth;}
     .grid::-webkit-scrollbar{display:none;}
-    .pick{scroll-snap-align:center;width:72px;height:114px;}
-    .grid .pick:nth-child(even){transform:none;}
-    .grid .pick.chosen,.grid .pick.chosen:nth-child(even){transform:translateY(-8px) scale(1.06);}
+    .pick{
+      scroll-snap-align:center;
+      width:80px;height:126px;margin:0 6px;
+      /* 未置中的牌：縮小、變暗；兩側僅露出一點邊緣 */
+      transform:scale(.82);opacity:.4;filter:brightness(.8);
+      transition:transform .25s ease,opacity .25s ease,filter .25s ease,border-color .2s,box-shadow .2s;}
+    .grid .pick:nth-child(even){transform:scale(.82);}
+    /* 置中（＝選定）的牌：放大、邊框高亮、微光 */
+    .grid .pick.centered,
+    .grid .pick.centered:nth-child(even){
+      transform:scale(1.08);opacity:1;filter:none;
+      border-color:var(--focus);box-shadow:0 6px 20px rgba(207,169,79,.3);}
+    /* 手機停用 hover 上浮與點擊放大（避免與轉盤衝突）*/
+    .pick:hover{transform:scale(.82);}
+    .grid .pick.centered:hover{transform:scale(1.08);}
+    .grid.has-chosen .pick:not(.chosen){opacity:.4;}
+    .grid.leaving .pick:not(.centered){opacity:0;transform:scale(.7);}
   }
 
   /* ---- 右欄 ---- */
   .col-right{min-width:0;}
+  /* 440px 下限只在雙欄時生效；單欄手機維持 0，避免撐寬溢出 */
   @media (min-width:900px){ .col-right{min-width:440px;} }
 
   /* 右欄未抽牌的引導 */
@@ -417,26 +436,79 @@ function buildPicker(){
     el.addEventListener("click",()=>pickCard(idx,el));
     grid.appendChild(el);
   });
-  pickHint.textContent = isDesktop() ? "憑直覺，選一張牌" : "左右滑動，選一張牌";
   confirmWrap.classList.remove("on");
   confirmBtn.disabled=false;
+
+  if(isDesktop()){
+    // 桌機：網格，點牌才選
+    pickHint.textContent="憑直覺，選一張牌";
+  }else{
+    // 手機：中央轉盤，滑到中央＝選定
+    pickHint.textContent="左右滑動，中間那張就是你選的牌";
+    setupCenterSnap();
+  }
 }
 
-/* ---- 點一張牌：標記選中、跳出確定 ---- */
+/* ---- 手機：偵測目前置中的牌，設為選定 ---- */
+let snapTimer=null;
+function updateCentered(){
+  if(isDesktop())return;
+  const gridRect=grid.getBoundingClientRect();
+  const center=gridRect.left+gridRect.width/2;
+  let best=null,bestDist=Infinity,bestIdx=-1;
+  [...grid.children].forEach((c,i)=>{
+    const r=c.getBoundingClientRect();
+    const cc=r.left+r.width/2;
+    const dist=Math.abs(cc-center);
+    if(dist<bestDist){bestDist=dist;best=c;bestIdx=i;}
+  });
+  [...grid.children].forEach(c=>c.classList.remove("centered"));
+  if(best){
+    best.classList.add("centered");
+    chosenIdx=bestIdx;
+    if(state==="choosing")state="selected";
+    // 中央已選定 → 顯示確定按鈕
+    confirmWrap.classList.add("on");
+  }
+}
+function setupCenterSnap(){
+  grid.onscroll=()=>{
+    if(locked)return;
+    if(snapTimer)clearTimeout(snapTimer);
+    updateCentered();
+    snapTimer=setTimeout(updateCentered,80);
+  };
+  requestAnimationFrame(()=>{ updateCentered(); });
+}
+
+/* ---- 點一張牌 ---- */
 function pickCard(idx,el){
-  if(state!=="choosing" && state!=="selected") return;
-  if(locked) return;
-  state="selected";
-  chosenIdx=idx;
-  [...grid.children].forEach(c=>c.classList.remove("chosen"));
-  el.classList.add("chosen");
-  grid.classList.add("has-chosen");
-  confirmWrap.classList.add("on");
+  if(locked)return;
+  if(isDesktop()){
+    // 桌機：點牌即選中，跳出確定
+    if(state!=="choosing" && state!=="selected")return;
+    state="selected";
+    chosenIdx=idx;
+    [...grid.children].forEach(c=>c.classList.remove("chosen"));
+    el.classList.add("chosen");
+    grid.classList.add("has-chosen");
+    confirmWrap.classList.add("on");
+  }else{
+    // 手機：點牌＝把它捲到正中央（成為選定）
+    el.scrollIntoView({behavior:reduceMotion?"auto":"smooth",inline:"center",block:"nearest"});
+    setTimeout(updateCentered,reduceMotion?0:300);
+  }
 }
 
 /* ---- 確定選這張：鎖定 → 翻牌 → 縮到右方 → 結果 ---- */
 function confirmPick(){
   if(state!=="selected"||chosenIdx<0||locked) return;
+  // 手機：確保置中牌也帶 chosen，退場時保留它
+  if(!isDesktop()){
+    [...grid.children].forEach(c=>c.classList.remove("chosen"));
+    const c=grid.children[chosenIdx];
+    if(c){c.classList.add("chosen");c.classList.add("centered");}
+  }
   locked=true;
   confirmBtn.disabled=true;
   grid.classList.add("locked");
