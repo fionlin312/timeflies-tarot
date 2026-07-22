@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拾光塔羅</title>
+<style>
+  :root{
+    --bg-1:#12091d;--bg-2:#1c0f2e;--ink:#f1ecf6;--ink-soft:#cabfda;
+    --gold:#cfa94f;--gold-dim:rgba(207,169,79,.14);
+    --line:rgba(207,169,79,.16);--line-soft:rgba(207,169,79,.10);
+    --card-face:#241536;--card-edge:rgba(207,169,79,.34);--focus:#e7cf8a;
+    --serif:"Noto Serif TC",Georgia,"Songti TC",serif;
+    --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--sans);color:var(--ink);
+    background:
+      radial-gradient(90% 55% at 50% 0%, rgba(58,33,86,.55) 0%, rgba(58,33,86,0) 60%),
+      radial-gradient(70% 50% at 82% 30%, rgba(207,169,79,.06) 0%, rgba(207,169,79,0) 60%),
+      linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);
+    background-attachment:fixed;min-height:100vh;line-height:1.8;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1000px;margin:0 auto;padding:38px 22px 52px;}
+
+  header{text-align:center;margin-bottom:30px;}
+  .brand{font-family:var(--serif);font-size:30px;letter-spacing:.3em;font-weight:600;
+    margin:0 0 8px;background:linear-gradient(180deg,#f3e8cf,var(--gold));
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .brand-sub{font-size:13px;letter-spacing:.34em;color:var(--ink-soft);margin:0;}
+  .divider{width:44px;height:1px;margin:16px auto 0;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.7;}
+
+  .layout{display:grid;grid-template-columns:1fr;gap:22px;align-items:start;}
+  @media (min-width:900px){
+    .layout{grid-template-columns:5fr 6fr;gap:30px;}
+    .col-right{position:sticky;top:32px;}
+  }
+
+  .panel{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+    border-radius:16px;padding:20px 18px;margin-bottom:18px;}
+  .label{font-size:12px;letter-spacing:.22em;color:var(--gold);margin:0 0 12px;font-weight:500;}
+
+  .topics{display:flex;gap:10px;}
+  .topic{flex:1;min-height:46px;font-family:var(--sans);font-size:15px;color:var(--ink-soft);
+    background:transparent;border:1px solid var(--line);border-radius:12px;padding:11px 0;
+    cursor:pointer;transition:color .2s,background .2s,border-color .2s;}
+  .topic:hover{border-color:var(--card-edge);color:var(--ink);}
+  .topic.active{color:#1a0f2a;background:linear-gradient(180deg,#efe2c4,var(--gold));
+    border-color:transparent;font-weight:600;}
+  .topic:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+
+  textarea{width:100%;resize:none;font-family:var(--sans);font-size:15px;color:var(--ink);
+    background:rgba(0,0,0,.24);border:1px solid var(--line);border-radius:12px;
+    padding:13px 14px;line-height:1.7;outline:none;transition:border-color .2s;}
+  textarea:hover{border-color:var(--card-edge);}
+  textarea:focus{border-color:var(--gold);}
+  textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+  textarea::placeholder{color:rgba(202,191,218,.62);}
+  .count{text-align:right;font-size:12px;color:var(--ink-soft);margin:8px 2px 0;}
+
+  /* ---- 選牌區（在左欄問題下方）---- */
+  .pick-panel{padding-bottom:16px;}
+  .pick-hint{font-size:13px;letter-spacing:.08em;color:var(--ink-soft);
+    margin:0 0 14px;text-align:center;min-height:20px;}
+  .grid{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;align-content:flex-start;}
+  .pick{position:relative;width:60px;height:96px;flex:0 0 auto;border-radius:9px;
+    border:1px solid var(--card-edge);cursor:pointer;
+    background:radial-gradient(58% 58% at 50% 42%, rgba(207,169,79,.12), transparent 70%),var(--card-face);
+    display:flex;align-items:center;justify-content:center;color:var(--gold);
+    font-family:var(--serif);font-size:16px;
+    transition:transform .28s ease,opacity .35s ease,border-color .2s,filter .2s,box-shadow .2s;}
+  .pick .mark{opacity:.5;}
+  .pick:hover{transform:translateY(-8px);border-color:var(--focus);}
+  .pick:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+  .grid .pick:nth-child(even){transform:translateY(6px);}
+  .grid .pick:nth-child(even):hover{transform:translateY(-8px);}
+  /* 選中：浮起、邊框亮、微光 */
+  .pick.chosen{transform:translateY(-10px) scale(1.06);border-color:var(--focus);
+    box-shadow:0 6px 18px rgba(207,169,79,.28);opacity:1 !important;filter:none !important;}
+  .grid .pick.chosen:nth-child(even){transform:translateY(-10px) scale(1.06);}
+  /* 有選中時，其他牌降亮 */
+  .grid.has-chosen .pick:not(.chosen){opacity:.4;filter:brightness(.8);}
+  /* 洗牌／退場 */
+  .grid.leaving .pick:not(.chosen){opacity:0;transform:scale(.9) translateY(10px);pointer-events:none;}
+  .grid.locked .pick{pointer-events:none;}
+
+  /* 確定按鈕 */
+  .confirm-wrap{margin-top:16px;text-align:center;
+    max-height:0;opacity:0;overflow:hidden;
+    transition:max-height .3s ease,opacity .3s ease;}
+  .confirm-wrap.on{max-height:80px;opacity:1;}
+  .confirm-btn{display:inline-block;min-height:48px;min-width:180px;
+    font-family:var(--serif);font-size:16px;letter-spacing:.14em;color:#241533;
+    background:linear-gradient(180deg,#e4d3ac,#cba845);border:none;border-radius:13px;
+    padding:13px 28px;cursor:pointer;transition:filter .2s,transform .12s;}
+  .confirm-btn:hover{filter:brightness(1.05);}
+  .confirm-btn:active{transform:translateY(1px);}
+  .confirm-btn:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}
+  .confirm-btn:disabled{opacity:.5;cursor:default;}
+
+  /* 手機：橫向 scroll-snap 牌列 */
+  @media (max-width:640px){
+    .grid{flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
+      justify-content:flex-start;gap:12px;padding:6px 2px 12px;
+      -ms-overflow-style:none;scrollbar-width:none;}
+    .grid::-webkit-scrollbar{display:none;}
+    .pick{scroll-snap-align:center;width:72px;height:114px;}
+    .grid .pick:nth-child(even){transform:none;}
+    .grid .pick.chosen,.grid .pick.chosen:nth-child(even){transform:translateY(-8px) scale(1.06);}
+  }
+
+  /* ---- 右欄 ---- */
+  .col-right{min-width:0;}
+  @media (min-width:900px){ .col-right{min-width:440px;} }
+
+  /* 右欄未抽牌的引導 */
+  .await{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+    border-radius:18px;padding:40px 22px;min-height:300px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .await .ring{width:76px;height:76px;border:1px solid var(--card-edge);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;color:var(--gold);
+    font-family:var(--serif);font-size:26px;margin-bottom:18px;}
+  .await p{margin:0;font-size:14px;letter-spacing:.06em;color:var(--ink-soft);}
+  .await.hidden{display:none;}
+
+  /* reveal：大牌卡（翻牌動畫用）*/
+  .reveal-wrap{display:none;flex-direction:column;align-items:center;
+    background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+    border-radius:18px;padding:26px 20px;min-height:300px;justify-content:center;}
+  .reveal-wrap.on{display:flex;}
+  .card-scene{perspective:1200px;width:184px;}
+  .card{position:relative;width:184px;height:290px;transform-style:preserve-3d;
+    transition:transform .6s cubic-bezier(.3,.7,.3,1);}
+  .card.flipped{transform:rotateY(180deg);}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    border-radius:15px;border:1px solid var(--card-edge);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .back{background:radial-gradient(58% 58% at 50% 42%, rgba(207,169,79,.12), transparent 70%),var(--card-face);}
+  .back .sigil{width:84px;height:84px;border:1px solid var(--card-edge);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;color:var(--gold);font-family:var(--serif);font-size:30px;}
+  .front{transform:rotateY(180deg);background:linear-gradient(180deg,#2a1940,#1d1030);flex-direction:column;}
+  .front.reversed .roman{transform:rotate(180deg);}
+  .front .roman{font-family:var(--serif);font-size:46px;color:var(--gold);line-height:1;transition:transform .3s;}
+  .front .rune{margin-top:14px;color:var(--card-edge);font-size:15px;letter-spacing:.4em;}
+  .reveal-cap{text-align:center;margin-top:16px;min-height:24px;}
+  .reveal-cap .cap-name{font-family:var(--serif);font-size:18px;letter-spacing:.08em;color:var(--ink);}
+  .reveal-cap .cap-pos{margin-left:10px;font-size:12px;letter-spacing:.24em;color:var(--gold);}
+
+  /* reading：結果（小牌卡摘要 + 解讀）*/
+  .result{display:none;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
+    border-radius:18px;padding:22px 20px;}
+  .result.on{display:block;}
+  .summary{display:flex;align-items:flex-start;gap:14px;
+    padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid var(--line-soft);}
+  .mini{width:56px;height:90px;flex:0 0 auto;border-radius:8px;border:1px solid var(--card-edge);
+    background:linear-gradient(180deg,#2a1940,#1d1030);
+    display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;color:var(--gold);}
+  .mini.reversed span{display:inline-block;transform:rotate(180deg);}
+  .sum-text{min-width:0;flex:1;}
+  .sum-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;}
+  .sum-name{font-family:var(--serif);font-size:20px;letter-spacing:.06em;color:var(--ink);}
+  .sum-pos{font-size:12px;letter-spacing:.24em;color:var(--gold);
+    padding:2px 10px;border:1px solid var(--line);border-radius:16px;}
+  .sum-kw{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .sum-kw .kw{font-size:12.5px;color:var(--ink-soft);border:1px solid var(--line);border-radius:14px;padding:3px 10px;}
+  .view-btn{flex:0 0 auto;align-self:flex-start;
+    font-family:var(--sans);font-size:12.5px;letter-spacing:.06em;color:var(--gold);
+    background:transparent;border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer;
+    min-height:32px;transition:background .2s,border-color .2s;}
+  .view-btn:hover{background:var(--gold-dim);border-color:var(--card-edge);}
+  .view-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+
+  .r-block{margin-bottom:18px;}
+  .r-block .k{font-size:12px;letter-spacing:.2em;color:var(--gold);margin:0 0 7px;font-weight:500;}
+  .r-block .v{margin:0;font-size:15.5px;line-height:1.85;color:var(--ink);}
+  .action{border-left:2px solid var(--gold);background:var(--gold-dim);border-radius:0 10px 10px 0;padding:12px 14px;}
+  .action .v{color:#f2e6c8;}
+
+  .again-btn{display:block;width:100%;min-height:48px;margin-top:6px;
+    font-family:var(--sans);font-size:15px;letter-spacing:.1em;color:var(--gold);
+    background:transparent;border:1px solid var(--line);border-radius:12px;padding:12px 0;
+    cursor:pointer;transition:background .2s,border-color .2s;}
+  .again-btn:hover{background:var(--gold-dim);border-color:var(--card-edge);}
+  .again-btn:active{transform:translateY(1px);}
+  .again-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+
+  .fade{opacity:0;transform:translateY(8px);transition:opacity .4s ease,transform .4s ease;}
+  .fade.show{opacity:1;transform:none;}
+
+  .disclaimer{margin-top:30px;text-align:center;font-size:12.5px;line-height:1.9;color:var(--ink-soft);padding:0 6px;}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.01ms !important;animation-duration:.01ms !important;}
+    html{scroll-behavior:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="brand">拾光塔羅</h1>
+    <p class="brand-sub">在靜默裡，拾起一束光</p>
+    <div class="divider"></div>
+  </header>
+
+  <div class="layout">
+    <!-- 左欄：設定 + 選牌 -->
+    <section class="col-left">
+      <div class="panel">
+        <p class="label">想探問的方向</p>
+        <div class="topics">
+          <button class="topic active" data-topic="感情">感情</button>
+          <button class="topic" data-topic="工作">工作</button>
+          <button class="topic" data-topic="自我成長">自我成長</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="label">寫下你的問題（可留白）</p>
+        <textarea id="question" rows="3" maxlength="150"
+          placeholder="例如：這段關係接下來該注意什麼？"></textarea>
+        <p class="count"><span id="count">0</span> / 150</p>
+      </div>
+
+      <!-- 牌陣直接攤在問題下方 -->
+      <div class="panel pick-panel">
+        <p class="label">憑直覺，選一張牌</p>
+        <p class="pick-hint" id="pickHint">靜下心，從下方選一張牌</p>
+        <div class="grid" id="grid"></div>
+        <div class="confirm-wrap" id="confirmWrap">
+          <button class="confirm-btn" id="confirmBtn">確定選這張</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右欄：等待 → 翻牌 → 結果 -->
+    <section class="col-right">
+      <!-- 等待引導 -->
+      <div class="await" id="await">
+        <div class="ring">✦</div>
+        <p>選好一張牌，這裡會為你翻開</p>
+      </div>
+
+      <!-- 大牌卡 reveal -->
+      <div class="reveal-wrap" id="revealWrap">
+        <div class="card-scene">
+          <div class="card" id="card">
+            <div class="face back"><div class="sigil">✦</div></div>
+            <div class="face front" id="front">
+              <div class="roman" id="roman">✦</div>
+              <div class="rune">✦</div>
+            </div>
+          </div>
+        </div>
+        <div class="reveal-cap" id="revealCap"></div>
+      </div>
+
+      <!-- 結果 reading -->
+      <div class="result" id="result">
+        <div class="summary">
+          <div class="mini" id="miniCard"><span id="miniRoman">—</span></div>
+          <div class="sum-text">
+            <div class="sum-line">
+              <span class="sum-name" id="sumName">—</span>
+              <span class="sum-pos" id="sumPos">—</span>
+            </div>
+            <div class="sum-kw" id="sumKw"></div>
+          </div>
+          <button class="view-btn" id="viewBtn">查看牌面</button>
+        </div>
+        <div class="r-block">
+          <p class="k">此刻的提醒</p>
+          <p class="v" id="rMeaning">—</p>
+        </div>
+        <div class="r-block">
+          <p class="k">可以思考</p>
+          <p class="v" id="rReflect">—</p>
+        </div>
+        <div class="r-block action">
+          <p class="k">今天的小行動</p>
+          <p class="v" id="rAction">—</p>
+        </div>
+        <button class="again-btn" id="againBtn">再抽一次</button>
+      </div>
+
+      <p class="disclaimer">
+        本服務僅供娛樂與自我探索，<br>
+        不取代醫療、心理、法律或財務專業建議。
+      </p>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ---------- 22 張大阿爾克那（牌義資料未改動）---------- */
+const DECK = [
+  {name:"愚者", roman:"0",
+   up:{kw:["起步","自由","天真"], m:"一段全新的旅程正要展開，心裡帶著單純的信任。你不必知道全部答案，只需要願意踏出第一步。", r:"如果不去想結果，你最想開始的是哪一件事？", a:"允許自己以初學者的心情，做一件一直想試卻遲遲沒開始的小事。"},
+   rev:{kw:["莽撞","逃避","猶豫"], m:"你可能因為害怕而停在原地，或反過來太急著跳進未知。此刻需要的是看清腳下，而不是硬衝或退縮。", r:"你真正在擔心的，是失敗本身，還是別人的眼光？", a:"在行動前，先安靜寫下你真正在擔心什麼，讓恐懼被看見。"}},
+  {name:"魔術師", roman:"I",
+   up:{kw:["行動","資源","專注"], m:"你已經擁有把想法變成現實的能力與工具，關鍵在於是否集中心力去使用它。", r:"你手上其實已經有的資源，是不是被你低估了？", a:"挑一個目標，今天就完成其中一個能立刻著手的具體步驟。"},
+   rev:{kw:["空談","分心","懷疑"], m:"能量還在，只是散掉了。也許你低估了自己，或把力氣花在太多方向上。", r:"哪些事其實可以先放下，好讓你專心在真正重要的那件？", a:"把待辦清單刪到只剩三件最重要的事，其餘先放下。"}},
+  {name:"女祭司", roman:"II",
+   up:{kw:["直覺","內在","靜觀"], m:"答案不在外面的喧嘩裡，而在你安靜下來時浮現的感覺。此刻適合聆聽，而非急著決定。", r:"當你安靜下來，心裡最先浮現的念頭是什麼？", a:"今晚給自己十分鐘的安靜，不看手機，只是感受心裡冒出的念頭。"},
+   rev:{kw:["忽略直覺","混亂","壓抑"], m:"你可能一直在說服自己「應該」怎麼做，卻壓下了心底真正的聲音。", r:"你有多久沒問過自己真正想要什麼了？", a:"問自己：如果沒有人會評價我，我真正想要的是什麼？"}},
+  {name:"皇后", roman:"III",
+   up:{kw:["滋養","豐盛","溫柔"], m:"這是一段能被好好照顧、也能照顧他人的時光。柔軟不是軟弱，而是一種豐盛的力量。", r:"最近一次，你為自己做了什麼溫柔的事？", a:"為自己做一件帶來滋養的事，一頓好飯、一段散步、一次深呼吸。"},
+   rev:{kw:["過度付出","失衡","空虛"], m:"你或許把太多能量給了別人，卻忘了留一些回饋自己。愛需要先流回你身上。", r:"你上一次把自己放在第一位，是什麼時候？", a:"練習說一次「不」，把那份時間留給自己。"}},
+  {name:"皇帝", roman:"IV",
+   up:{kw:["秩序","穩定","負責"], m:"現在適合建立結構與規則，用清晰的界線讓生活穩固下來。你有能力主導局面。", r:"如果由你來訂規則，你希望這件事怎麼運作？", a:"為正在煩惱的事訂下一個明確的規則或界線，並溫和地守住它。"},
+   rev:{kw:["僵化","控制","失序"], m:"過度的掌控反而讓事情卡住，或者你正處在缺乏支撐的混亂中。彈性比強硬更需要。", r:"有沒有一條你一直堅持、其實已經不適合你的規則？", a:"檢視一條你一直堅持的規則，問它現在還適合你嗎。"}},
+  {name:"教皇", roman:"V",
+   up:{kw:["引導","傳統","信念"], m:"你可能正在尋找一個能依循的價值或前輩的指引。傳統的智慧此刻能給你安定。", r:"誰是你信任、且走過類似路的人？", a:"向一位你信任、走過類似路的人請教，聽聽他們的經驗。"},
+   rev:{kw:["質疑","叛逆","自主"], m:"舊有的規則不再適合你，內心開始想走出屬於自己的路。這份質疑是成長的訊號。", r:"哪一句「別人說你應該」，其實你並不認同？", a:"寫下一條你想打破的「別人說應該」，替它換上你自己的版本。"}},
+  {name:"戀人", roman:"VI",
+   up:{kw:["連結","選擇","真心"], m:"這是關於心的靠近與真誠的選擇。當你依著價值觀去愛、去決定，關係會更踏實。", r:"有什麼心裡話，你一直想說卻沒說出口？", a:"對重要的人坦誠說出一件你一直想說、卻沒說出口的心裡話。"},
+   rev:{kw:["失衡","逃避選擇","動搖"], m:"你可能在關係或抉擇裡感到拉扯，或不願面對需要負責的那一面。", r:"你是不是在用「再等等」來迴避一個該做的決定？", a:"誠實面對一個你一直在拖延的選擇，先寫下它的利與弊。"}},
+  {name:"戰車", roman:"VII",
+   up:{kw:["前進","意志","掌控"], m:"憑著決心與方向感，你能駕馭眼前的挑戰。專注一個目標，全力向前。", r:"如果只能全力推進一件事，你會選哪一個？", a:"設定一個近期能達成的明確目標，並排除一項會分心的干擾。"},
+   rev:{kw:["失控","方向不明","內耗"], m:"力量還在，但缺了方向，或內在有兩股力量在互相拉扯，讓你原地空轉。", r:"你心裡的兩個聲音，各自想帶你去哪裡？", a:"停下來釐清：你此刻真正想去的方向，只選一個。"}},
+  {name:"力量", roman:"VIII",
+   up:{kw:["溫柔的勇氣","耐心","韌性"], m:"真正的強大不是壓制，而是用溫柔安撫住內在的躁動。你比自己想的更有韌性。", r:"面對焦躁時，你能不能像安撫朋友那樣安撫自己？", a:"面對一件讓你焦躁的事，這次試著用溫和而堅定的態度回應它。"},
+   rev:{kw:["自我懷疑","急躁","耗竭"], m:"你可能對自己太嚴厲，或把力氣用在硬撐上。允許自己休息，也是一種力量。", r:"你對自己說的話，你捨得對朋友說嗎？", a:"對自己說一句你會對好朋友說的鼓勵話。"}},
+  {name:"隱者", roman:"IX",
+   up:{kw:["內省","獨處","尋找"], m:"此刻適合往內走，暫時離開喧囂，讓自己在安靜中看清真正想要的方向。", r:"如果一個人待著，你會想弄清楚什麼？", a:"安排一段獨處的時間，不安排任何目的，只是陪自己。"},
+   rev:{kw:["孤立","逃避","迷失"], m:"獨處若變成了躲藏，反而會讓你更迷惘。也許該讓一點光和人進來了。", r:"有沒有一個人，其實你可以安心地靠近？", a:"主動聯繫一位久未聯絡、卻讓你感到安心的人。"}},
+  {name:"命運之輪", roman:"X",
+   up:{kw:["轉變","時機","流動"], m:"事情正在轉動，一個新的循環即將展開。順著變化走，會比抗拒它更輕鬆。", r:"這個變化裡，哪些是你能掌握、哪些不是？", a:"接受一件你無法控制的變化，把注意力放回你能做的部分。"},
+   rev:{kw:["停滯","抗拒改變","低潮"], m:"你可能感覺卡在原地，或正經歷一段下行的週期。這是暫時的，輪子終會再轉。", r:"上一次走出低潮，是什麼幫了你？", a:"回想上一次低潮你是如何走過的，提醒自己你有這份能力。"}},
+  {name:"正義", roman:"XI",
+   up:{kw:["平衡","誠實","責任"], m:"此刻需要公正地看待事情，也為自己的選擇負責。真相與坦誠會帶來清明。", r:"在這件事裡，你該負的責任是哪一部分？", a:"誠實檢視一件事，你在其中該負的責任是什麼，該調整的又是什麼。"},
+   rev:{kw:["失衡","逃避責任","偏頗"], m:"你或許正迴避某個該面對的後果，或用不夠公平的眼光看待自己或他人。", r:"有沒有一個事實，你其實早就知道，卻不想承認？", a:"承認一個你一直不想承認的事實，光是說出來就會鬆一口氣。"}},
+  {name:"吊人", roman:"XII",
+   up:{kw:["換位","放下","等待"], m:"暫停不是失敗，而是換一個角度看事情。有些事需要先鬆手，才會看清。", r:"如果從完全相反的角度看，這件事會變成什麼樣？", a:"對一件卡住的事，試著從完全相反的角度重新想一次。"},
+   rev:{kw:["拖延","無謂犧牲","僵持"], m:"你可能困在無意義的等待，或為了不值得的事一再委屈自己。是時候動一動了。", r:"你正在忍耐的這件事，真的值得繼續嗎？", a:"檢視一個你一直忍耐的處境，問它是否真的值得繼續。"}},
+  {name:"死神", roman:"XIII",
+   up:{kw:["結束","蛻變","重生"], m:"一段時期正在自然地落幕，這是為了讓新的東西有空間長出來。放手是溫柔的告別。", r:"有什麼是你其實已經準備好告別的？", a:"整理並告別一樣不再適合你的舊物、舊習慣或舊想法。"},
+   rev:{kw:["抗拒結束","停滯","留戀"], m:"你可能緊抓著一段該結束的事物不放，那份不捨反而讓你無法向前。", r:"放手之後，可能會空出什麼樣的空間？", a:"寫下你害怕失去的是什麼，也寫下放手後可能得到的空間。"}},
+  {name:"節制", roman:"XIV",
+   up:{kw:["調和","耐心","中道"], m:"此刻適合找到恰到好處的平衡，不極端、不勉強，讓事情慢慢融合出對的比例。", r:"這件事上，你的「剛剛好」會是什麼樣子？", a:"在一件過與不及的事上，找出你的中間點，並照它調整一次。"},
+   rev:{kw:["失衡","過度","不耐"], m:"你可能在某方面用力過猛，或急著要結果。緩下來，節奏才會回來。", r:"你是不是在催促一件其實需要時間的事？", a:"今天刻意放慢一件你習慣趕著做的事。"}},
+  {name:"惡魔", roman:"XV",
+   up:{kw:["束縛","慾望","誠實面對"], m:"某種執著、習慣或關係正悄悄綁住你。看清它的存在，就是鬆綁的開始。", r:"什麼東西，明知不太好卻讓你一再回頭？", a:"誠實指認一個綁住你的習慣或念頭，先不評價，只是看見它。"},
+   rev:{kw:["鬆綁","覺醒","釋放"], m:"你正逐漸看清那些困住自己的模式，並有機會掙脫。自由就在你決定放下的那一刻。", r:"如果鬆開這個束縛，你的生活會有什麼不同？", a:"為一個你想戒掉的習慣，訂下今天能做到的一小步。"}},
+  {name:"高塔", roman:"XVI",
+   up:{kw:["突變","瓦解","真相"], m:"某個看似穩固的東西可能突然鬆動。雖然震盪，但被打破的，往往是不再真實的部分。", r:"如果這件事真的瓦解了，剩下的哪些才是你真正在乎的？", a:"面對一件動搖你的事，先照顧好情緒，再一步步重新站穩。"},
+   rev:{kw:["延遲的崩解","勉強維持","恐懼"], m:"你可能正努力撐住一個已經在裂開的結構，那份勉強比崩塌本身更累。", r:"你在硬撐的這件事，是不是早就想放手了？", a:"允許自己承認「這撐不下去了」，並想想最溫柔的收尾方式。"}},
+  {name:"星星", roman:"XVII",
+   up:{kw:["希望","療癒","信任"], m:"風暴之後，寧靜正在回來。這是一段被溫柔療癒、重新相信未來的時光。", r:"你心裡最想許下的那個願望是什麼？", a:"許一個真心的願望，並為它做一件微小卻具體的事。"},
+   rev:{kw:["失去信心","疲憊","懷疑未來"], m:"你可能暫時看不見光，對前方感到茫然。但星光只是被雲遮住，並沒有熄滅。", r:"上一次覺得「還有希望」，是因為什麼？", a:"回想一件曾讓你重新有力氣的小事，今天再為自己做一次。"}},
+  {name:"月亮", roman:"XVIII",
+   up:{kw:["潛意識","不安","想像"], m:"眼前有些朦朧，情緒與想像交錯，讓事情看起來比實際更嚇人。允許自己慢慢摸索。", r:"你的擔心裡，有多少是事實，有多少是想像？", a:"把讓你不安的念頭寫下來，分清哪些是事實，哪些只是想像。"},
+   rev:{kw:["撥雲","看清","釋懷"], m:"迷霧正在散去，你開始能分辨真實與恐懼。曾經困擾你的，逐漸有了答案。", r:"哪件曾讓你困惑的事，現在變得比較清楚了？", a:"對一個一直讓你困惑的疑問，寫下你現在比較清楚的部分。"}},
+  {name:"太陽", roman:"XIX",
+   up:{kw:["喜悅","清明","活力"], m:"這是明亮而溫暖的時刻，事情變得清楚，你也重新感覺到單純的快樂與力量。", r:"什麼事，光是想到就會讓你嘴角上揚？", a:"做一件會讓你發自內心微笑的事，並允許自己盡情享受它。"},
+   rev:{kw:["暫時的陰天","勉強樂觀","延遲"], m:"快樂還在，只是被雲稍稍遮住。不必逼自己一定要開心，光會慢慢回來。", r:"此刻，什麼樣的小事能讓你舒服一點？", a:"找一件小小的確定會讓你舒服的事，先照顧好今天。"}},
+  {name:"審判", roman:"XX",
+   up:{kw:["覺醒","召喚","重新選擇"], m:"某個內在的聲音正在呼喚你，邀你放下過去、以新的眼光重新出發。", r:"回頭看那段過去，它其實教會了你什麼？", a:"回顧一段過去，寫下你從中學到的一課，然後溫柔地放它過去。"},
+   rev:{kw:["自我批判","猶豫","放不下"], m:"你可能一直用過去的錯誤責備自己，或遲遲不敢回應心裡那個召喚。", r:"如果那是朋友犯的錯，你會怎麼安慰他？", a:"原諒過去某個時刻的自己，你已經做了當時能做的最好選擇。"}},
+  {name:"世界", roman:"XXI",
+   up:{kw:["完成","圓滿","整合"], m:"一段旅程即將圓滿收尾，你已經走了很遠。此刻適合慶祝，也準備迎接下一個循環。", r:"有哪件已完成的事，你其實還沒好好肯定自己？", a:"好好肯定一件你已經完成的事，為自己的努力停下來喝采一次。"},
+   rev:{kw:["未竟","收尾","差一步"], m:"你離完成只差一小段，卻可能在此時鬆懈或卡住。別在最後一哩放棄。", r:"那件「快好了」的事，還差哪一步就能收尾？", a:"找出那件「快好了卻一直沒收尾」的事，把它真正完成。"}}
+];
+
+/* ---------- 安全隨機 ---------- */
+function secureInt(max){const b=new Uint32Array(1);crypto.getRandomValues(b);return b[0]%max;}
+function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=secureInt(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ---------- 狀態 ---------- */
+let state="choosing";   // choosing / selected / revealed / reading
+let dealt=[];           // 洗好的 22 張，含正逆位（一次定案）
+let chosenIdx=-1;
+let locked=false;
+
+/* 主題（不動）*/
+let topic="感情";
+document.querySelectorAll(".topic").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".topic").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");topic=btn.dataset.topic;
+  });
+});
+/* 字數（不動）*/
+const qEl=document.getElementById("question"),countEl=document.getElementById("count");
+qEl.addEventListener("input",()=>{countEl.textContent=qEl.value.length;});
+
+/* 元素 */
+const grid=document.getElementById("grid");
+const pickHint=document.getElementById("pickHint");
+const confirmWrap=document.getElementById("confirmWrap");
+const confirmBtn=document.getElementById("confirmBtn");
+const awaitBox=document.getElementById("await");
+const revealWrap=document.getElementById("revealWrap");
+const card=document.getElementById("card");
+const front=document.getElementById("front");
+const roman=document.getElementById("roman");
+const revealCap=document.getElementById("revealCap");
+const result=document.getElementById("result");
+const viewBtn=document.getElementById("viewBtn");
+const againBtn=document.getElementById("againBtn");
+
+const reduceMotion=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const isDesktop=()=>window.matchMedia("(min-width:900px)").matches;
+
+/* ---- 建立牌陣（一次定案洗牌 + 正逆位）---- */
+function buildPicker(){
+  state="choosing";locked=false;chosenIdx=-1;
+  dealt=shuffle(DECK).map(cd=>({data:cd,isRev:secureInt(2)===1}));
+  grid.className="grid";
+  grid.innerHTML="";
+  dealt.forEach((d,idx)=>{
+    const el=document.createElement("button");
+    el.className="pick";
+    el.setAttribute("aria-label","第"+(idx+1)+"張牌");
+    el.innerHTML='<span class="mark">✦</span>';
+    el.addEventListener("click",()=>pickCard(idx,el));
+    grid.appendChild(el);
+  });
+  pickHint.textContent = isDesktop() ? "憑直覺，選一張牌" : "左右滑動，選一張牌";
+  confirmWrap.classList.remove("on");
+  confirmBtn.disabled=false;
+}
+
+/* ---- 點一張牌：標記選中、跳出確定 ---- */
+function pickCard(idx,el){
+  if(state!=="choosing" && state!=="selected") return;
+  if(locked) return;
+  state="selected";
+  chosenIdx=idx;
+  [...grid.children].forEach(c=>c.classList.remove("chosen"));
+  el.classList.add("chosen");
+  grid.classList.add("has-chosen");
+  confirmWrap.classList.add("on");
+}
+
+/* ---- 確定選這張：鎖定 → 翻牌 → 縮到右方 → 結果 ---- */
+function confirmPick(){
+  if(state!=="selected"||chosenIdx<0||locked) return;
+  locked=true;
+  confirmBtn.disabled=true;
+  grid.classList.add("locked");
+
+  const chosen=dealt[chosenIdx];
+
+  // 其他牌退場（約 350ms）
+  grid.classList.add("leaving");
+  confirmWrap.classList.remove("on");
+
+  const leaveMs=reduceMotion?0:350;
+  setTimeout(()=>{ reveal(chosen); },leaveMs);
+}
+
+/* ---- 翻牌 reveal（600ms）→ 停 800ms → 收成結果 ---- */
+function reveal(chosen){
+  state="revealed";
+  const {data,isRev}=chosen;
+  const d=isRev?data.rev:data.up;
+  const posText=isRev?"逆位":"正位";
+
+  awaitBox.classList.add("hidden");
+  result.classList.remove("on");
+  roman.textContent=data.roman;
+  front.classList.toggle("reversed",isRev);
+  revealCap.innerHTML="";
+  revealWrap.classList.add("on");
+  card.classList.remove("flipped");
+
+  // 桌機：右欄本就可見；手機：捲到右欄看翻牌
+  if(!isDesktop()){
+    document.querySelector(".col-right").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});
+  }
+
+  const flipMs=reduceMotion?0:600;
+  const holdMs=reduceMotion?0:800;
+  setTimeout(()=>{ card.classList.add("flipped"); },60);
+  setTimeout(()=>{
+    revealCap.innerHTML='<span class="cap-name">'+data.name+'</span><span class="cap-pos">'+posText+'</span>';
+  },60+flipMs);
+  setTimeout(()=>{ toReading(data,d,isRev,posText); },60+flipMs+holdMs);
+}
+
+/* ---- reading：小牌卡摘要 + 解讀淡入（400ms）---- */
+function toReading(data,d,isRev,posText){
+  state="reading";
+  revealWrap.classList.remove("on");
+
+  document.getElementById("miniRoman").innerHTML = isRev?'<span>'+data.roman+'</span>':data.roman;
+  document.getElementById("miniCard").classList.toggle("reversed",isRev);
+  document.getElementById("sumName").textContent=data.name;
+  document.getElementById("sumPos").textContent=posText;
+  const kwWrap=document.getElementById("sumKw");kwWrap.innerHTML="";
+  d.kw.forEach(k=>{const s=document.createElement("span");s.className="kw";s.textContent=k;kwWrap.appendChild(s);});
+  document.getElementById("rMeaning").textContent=d.m;
+  document.getElementById("rReflect").textContent=d.r;
+  document.getElementById("rAction").textContent=d.a;
+
+  result.classList.add("on");
+  requestAnimationFrame(()=>{result.classList.add("fade");requestAnimationFrame(()=>result.classList.add("show"));});
+}
+
+/* ---- 查看牌面：重新放大 ---- */
+viewBtn.addEventListener("click",()=>{
+  if(revealWrap.classList.contains("on")){
+    revealWrap.classList.remove("on");viewBtn.textContent="查看牌面";
+  }else{
+    revealWrap.classList.add("on");card.classList.add("flipped");viewBtn.textContent="收起牌面";
+    if(!isDesktop()){document.querySelector(".col-right").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});}
+  }
+});
+
+/* ---- 確定 / 再抽一次 ---- */
+confirmBtn.addEventListener("click",confirmPick);
+againBtn.addEventListener("click",()=>{
+  result.classList.remove("show");result.classList.remove("fade");result.classList.remove("on");
+  revealWrap.classList.remove("on");card.classList.remove("flipped");
+  viewBtn.textContent="查看牌面";
+  awaitBox.classList.remove("hidden");
+  buildPicker();
+  // 回到牌陣
+  grid.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"center"});
+});
+
+/* 初始化：牌陣一載入就攤開 */
+buildPicker();
+</script>
+</body>
+</html>
